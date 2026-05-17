@@ -9,17 +9,27 @@ import {
   ArrowRight,
   MessageSquare,
   Sparkles,
-  Info
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+
+interface GuideTarget {
+  x: number;
+  y: number;
+  label: string;
+}
+
+interface GuidanceStep {
+  text: string;
+  target?: GuideTarget;
+  elementIndex?: number;
+}
 
 interface Guidance {
   thought: string;
-  steps: string[];
-  target: {
-    x: number;
-    y: number;
-    label: string;
-  };
+  steps: GuidanceStep[];
+  vision?: boolean;
+  visionFallback?: boolean;
 }
 
 export default function App() {
@@ -36,6 +46,8 @@ export default function App() {
   const [inputMode, setInputMode] = useState<'selection' | 'text' | 'voice'>('selection');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [stepRefining, setStepRefining] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,10 +59,14 @@ export default function App() {
     isCapturingRef.current = isCapturing;
   }, [isCapturing]);
 
+  const openAskModal = (mode: "selection" | "text" | "voice" = "selection") => {
+    setIsTriggerOpen(true);
+    setInputMode(mode);
+  };
+
   const toggleGuideTrigger = () => {
-    if (!isCapturingRef.current) return;
     setIsTriggerOpen((prev) => !prev);
-    setInputMode('selection');
+    setInputMode("selection");
   };
 
   // Hotkey: Ctrl+Shift+L (in-app). Cross-tab: install extension/ folder in Chrome.
@@ -197,12 +213,20 @@ export default function App() {
     const ready = await waitForVideoFrame(video);
     if (!ready || !video.videoWidth) return null;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const maxWidth = 960;
+    let w = video.videoWidth;
+    let h = video.videoHeight;
+    if (w > maxWidth) {
+      const scale = maxWidth / w;
+      w = maxWidth;
+      h = Math.round(video.videoHeight * scale);
+    }
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
+    ctx.drawImage(video, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
   };
 
   const toggleListening = () => {
@@ -261,6 +285,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: finalPrompt,
+          provider: "gemini",
           image: frame,
           dimensions: {
             width: videoRef.current?.videoWidth ?? 0,
@@ -271,23 +296,36 @@ export default function App() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Guide request failed");
+        // Give a friendly message for quota/rate-limit errors.
+        const raw: string = typeof data.error === "string"
+          ? data.error
+          : JSON.stringify(data.error ?? "Guide request failed");
+        const isQuota =
+          raw.includes("429") ||
+          raw.includes("RESOURCE_EXHAUSTED") ||
+          raw.includes("quota") ||
+          raw.includes("rate limit");
+        throw new Error(isQuota ? "Gemini free-tier quota exhausted. " + raw : raw);
       }
 
       if (data.error) {
-        throw new Error(data.error);
+        throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
       }
 
-      setResponse(data);
+      const guidance = normalizeGuidance(data);
+      setResponse(guidance);
       setPrompt("");
+      setStepIndex(0);
 
-      if (data.target && videoRef.current) {
-        const rect = videoRef.current.getBoundingClientRect();
-        const targetX = rect.left + (data.target.x / 1000) * rect.width;
-        const targetY = rect.top + (data.target.y / 1000) * rect.height;
-
-        setIsPhantomActive(true);
-        setPhantomPos({ x: targetX, y: targetY });
+      if (guidance.visionFallback || guidance.vision === false) {
+        setIsPhantomActive(false);
+        setErrorMessage(
+          "Gemini could not analyze the screenshot (quota or model limit). " +
+            "Use Previous/Next for text steps, or the ✦ extension on the live tab for a moving cursor on real buttons.",
+        );
+      } else {
+        setErrorMessage(null);
+        await refineStepTarget(0, guidance);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Guidance request failed";
@@ -299,6 +337,118 @@ export default function App() {
   };
 
   handleSubmitRef.current = handleSubmit;
+
+  const normalizeGuidance = (data: Record<string, unknown>): Guidance => {
+    if (Array.isArray(data.stepItems) && data.stepItems.length > 0) {
+      return {
+        thought: String(data.thought ?? ""),
+        steps: data.stepItems as GuidanceStep[],
+        vision: Boolean(data.vision),
+        visionFallback: Boolean(data.visionFallback),
+      };
+    }
+    const rawSteps = data.steps;
+    if (Array.isArray(rawSteps) && rawSteps.length > 0 && typeof rawSteps[0] === "object") {
+      return {
+        thought: String(data.thought ?? ""),
+        steps: rawSteps as GuidanceStep[],
+        vision: Boolean(data.vision),
+        visionFallback: Boolean(data.visionFallback),
+      };
+    }
+    const legacyTarget = data.target as GuideTarget | undefined;
+    const strings = Array.isArray(rawSteps)
+      ? rawSteps.filter((s): s is string => typeof s === "string")
+      : [];
+    return {
+      thought: String(data.thought ?? ""),
+      steps: strings.map((text, i) => ({
+        text,
+        target: i === 0 ? legacyTarget : undefined,
+      })),
+      vision: Boolean(data.vision),
+      visionFallback: Boolean(data.visionFallback),
+    };
+  };
+
+  const showStepOnPreview = (guidance: Guidance, index: number) => {
+    const step = guidance.steps[index];
+    if (!step?.target || guidance.visionFallback || !videoRef.current) {
+      setIsPhantomActive(false);
+      return;
+    }
+    const rect = videoRef.current.getBoundingClientRect();
+    setPhantomPos({
+      x: rect.left + (step.target.x / 1000) * rect.width,
+      y: rect.top + (step.target.y / 1000) * rect.height,
+    });
+    setIsPhantomActive(true);
+  };
+
+  const refineStepTarget = async (index: number, guidance?: Guidance) => {
+    const g = guidance ?? response;
+    if (!g || index < 0 || index >= g.steps.length) return;
+
+    setStepIndex(index);
+
+    if (!isCapturingRef.current) {
+      showStepOnPreview(g, index);
+      return;
+    }
+
+    setStepRefining(true);
+    try {
+      const frame = await captureFrame();
+      if (!frame) return;
+
+      const step = g.steps[index];
+      const res = await fetch("/api/guide/step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stepText: step.text,
+          stepIndex: index + 1,
+          totalSteps: g.steps.length,
+          image: frame,
+          dimensions: {
+            width: videoRef.current?.videoWidth ?? 0,
+            height: videoRef.current?.videoHeight ?? 0,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Step vision failed",
+        );
+      }
+
+      setResponse((prev) => {
+        if (!prev) return prev;
+        const steps = [...prev.steps];
+        steps[index] = { ...steps[index], target: data.target };
+        return { ...prev, steps, vision: true, visionFallback: false };
+      });
+      setErrorMessage(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Step vision failed";
+      setErrorMessage(message);
+      showStepOnPreview(g, index);
+    } finally {
+      setStepRefining(false);
+    }
+  };
+
+  const goToStep = (index: number) => {
+    void refineStepTarget(index);
+  };
+
+  useEffect(() => {
+    if (response && !response.visionFallback && !stepRefining) {
+      showStepOnPreview(response, stepIndex);
+    }
+  }, [stepIndex, response, stepRefining]);
 
   return (
     <div className="min-h-screen bg-[#020203] text-gray-100 font-sans selection:bg-brand-500/30 overflow-hidden relative">
@@ -351,7 +501,25 @@ export default function App() {
           </div>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => openAskModal("voice")}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600/20 border border-brand-500/30 text-brand-300 text-xs font-bold uppercase tracking-wider hover:bg-brand-600/30 transition-all cursor-pointer"
+            title="Ask with voice (Ctrl+Shift+L)"
+          >
+            <Mic className="w-4 h-4" />
+            Ask
+          </button>
+          <button
+            type="button"
+            onClick={() => openAskModal("text")}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-all cursor-pointer"
+            title="Ask with text"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Text
+          </button>
           {!isCapturing ? (
             <button 
               onClick={startCapture}
@@ -462,11 +630,12 @@ export default function App() {
                 <AnimatePresence>
                   {isPhantomActive && (
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.5 }}
+                      key={`${phantomPos.x}-${phantomPos.y}`}
+                      initial={{ opacity: 0, scale: 0.5, x: phantomPos.x, y: phantomPos.y }}
                       animate={{ opacity: 1, scale: 1, x: phantomPos.x, y: phantomPos.y }}
                       exit={{ opacity: 0, scale: 0.5 }}
                       transition={{ type: "spring", damping: 25, stiffness: 120 }}
-                      style={{ position: 'fixed', left: 0, top: 0, zIndex: 100 }}
+                      style={{ position: "fixed", left: 0, top: 0, zIndex: 200 }}
                       className="pointer-events-none"
                     >
                       <div className="relative">
@@ -497,11 +666,10 @@ export default function App() {
                               <span className="text-[10px] font-mono text-brand-400 font-bold uppercase tracking-[0.2em]">DATA_LOCKED</span>
                             </div>
                             <span className="text-sm font-bold text-white tracking-tight whitespace-nowrap">
-                              {response?.target.label || "NEURAL_TARGET"}
+                              {response?.steps[stepIndex]?.target?.label || "NEURAL_TARGET"}
                             </span>
                             <div className="flex items-center gap-4 mt-2">
-                              <div className="text-[8px] font-mono text-gray-500">X: {response?.target.x}</div>
-                              <div className="text-[8px] font-mono text-gray-500">Y: {response?.target.y}</div>
+                              <div className="text-[8px] font-mono text-gray-500">Step {stepIndex + 1}/{response?.steps.length ?? 0}</div>
                             </div>
                           </div>
                           {/* HUD Corner Brackets */}
@@ -574,29 +742,67 @@ export default function App() {
                   <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Execution Steps</span>
                   <div className="space-y-4">
                     {response.steps.map((step, i) => (
-                      <motion.div 
+                      <motion.button
+                        type="button"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        key={i} 
-                        className="flex gap-4 p-4 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all hover:bg-white/[0.04]"
+                        key={i}
+                        onClick={() => goToStep(i)}
+                        disabled={stepRefining}
+                        className={`flex gap-4 p-4 rounded-3xl text-left w-full transition-all cursor-pointer ${
+                          i === stepIndex
+                            ? "bg-brand-500/15 border border-brand-500/40"
+                            : "bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04]"
+                        }`}
                       >
-                        <div className="w-8 h-8 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-xs font-bold text-brand-400 shrink-0">
+                        <motion.div className="w-8 h-8 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-xs font-bold text-brand-400 shrink-0">
                           {i + 1}
-                        </div>
-                        <p className="text-[14px] text-gray-300 leading-relaxed font-medium pt-1">{step}</p>
-                      </motion.div>
+                        </motion.div>
+                        <p className="text-[14px] text-gray-300 leading-relaxed font-medium pt-1">{step.text}</p>
+                      </motion.button>
                     ))}
                   </div>
                 </div>
               </div>
 
+              {response.steps.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6 flex items-center justify-between gap-3"
+                >
+                  <button
+                    type="button"
+                    disabled={stepIndex === 0 || stepRefining}
+                    onClick={() => goToStep(stepIndex - 1)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-widest text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </button>
+                  <span className="text-[10px] font-mono text-gray-500 shrink-0 text-center min-w-[72px]">
+                    {stepRefining ? "Locating…" : `${stepIndex + 1} / ${response.steps.length}`}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={stepIndex >= response.steps.length - 1 || stepRefining}
+                    onClick={() => goToStep(stepIndex + 1)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-brand-600 hover:bg-brand-500 border border-brand-500/30 text-xs font-bold uppercase tracking-widest text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              )}
+
               <button 
                 onClick={() => {
                   setResponse(null);
                   setIsPhantomActive(false);
+                  setStepIndex(0);
                 }}
-                className="mt-8 w-full py-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-all cursor-pointer"
+                className="mt-4 w-full py-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-all cursor-pointer"
               >
                 Clear Guidance
               </button>
@@ -612,7 +818,8 @@ export default function App() {
               </div>
               <h3 className="text-xl font-bold mb-4">Neural Hub Ready</h3>
               <p className="text-sm text-gray-500 max-w-[240px] leading-relaxed font-medium">
-                Summon your assistant with <span className="text-brand-400">Ctrl+Shift+L</span> on any tab (after screen sync).
+                Use <span className="text-brand-400">Ask</span> / <span className="text-brand-400">Text</span> above or{" "}
+                <span className="text-brand-400">Ctrl+Shift+L</span>. Sync screen first for the guide cursor.
               </p>
             </div>
           )}

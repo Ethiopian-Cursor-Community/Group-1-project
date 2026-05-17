@@ -32,8 +32,8 @@
   right: 20px;
   bottom: 90px;
   z-index: 2147483646;
-  width: 360px;
-  max-height: 70vh;
+  width: 380px;
+  max-height: 75vh;
   padding: 18px;
   border-radius: 22px;
   background: rgba(10, 10, 12, 0.96);
@@ -83,7 +83,7 @@
   font-size: 14px;
   outline: none;
   resize: vertical;
-  min-height: 64px;
+  min-height: 68px;
   font-family: inherit;
 }
 
@@ -91,8 +91,29 @@
   border-color: #8b5cf6;
 }
 
+.cguide-input-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#cguide-mic {
+  width: 48px;
+  padding: 11px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+#cguide-mic.listening {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
 #cguide-send {
-  width: 100%;
+  flex: 1;
   padding: 11px;
   border-radius: 14px;
   border: none;
@@ -134,9 +155,152 @@
   color: #fecaca;
 }
 
+#cguide-steps {
+  display: none;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e4e4e7;
+}
+
+#cguide-steps.visible {
+  display: block;
+}
+
+#cguide-steps li {
+  margin-bottom: 6px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+#cguide-steps li.active {
+  background: rgba(124, 58, 237, 0.2);
+  color: #ede9fe;
+}
+
+.cguide-stepnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cguide-stepnav button {
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e4e4e7;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cguide-stepnav button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#cguide-next {
+  background: #7c3aed;
+  border-color: rgba(124, 58, 237, 0.5);
+  color: #fff;
+}
+
+#cguide-stepcount {
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  color: #a1a1aa;
+  flex-shrink: 0;
+}
+
 #cguide-meta {
   font-size: 10px;
   color: #71717a;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Phantom cursor overlay (lives outside the panel) */
+#cguide-phantom {
+  position: fixed;
+  z-index: 2147483645;
+  pointer-events: none;
+  display: none;
+  transform: translate(-50%, -50%);
+  transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#cguide-phantom.visible {
+  display: block;
+}
+
+#cguide-phantom-reticle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(139, 92, 246, 0.7);
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.6),
+    inset 0 0 12px rgba(139, 92, 246, 0.35);
+  animation: cguide-pulse 1.6s ease-in-out infinite;
+}
+
+#cguide-phantom-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
+}
+
+#cguide-phantom-label {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(10, 10, 12, 0.95);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #ede9fe;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+#cguide-highlight {
+  position: fixed;
+  z-index: 2147483644;
+  pointer-events: none;
+  display: none;
+  border: 2px solid rgba(139, 92, 246, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2),
+    0 0 24px rgba(139, 92, 246, 0.5);
+  transition: top 0.4s ease, left 0.4s ease, width 0.4s ease, height 0.4s ease;
+}
+
+#cguide-highlight.visible {
+  display: block;
+}
+
+@keyframes cguide-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.6;
+  }
 }

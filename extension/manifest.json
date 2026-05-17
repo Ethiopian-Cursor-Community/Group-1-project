@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "C_GUIDE — Ask Cursor Anywhere",
-  "version": "2.0.0",
-  "description": "Pop up a Cursor-powered assistant on any browser tab. Ctrl+Shift+L to open.",
+  "name": "C_GUIDE — Ask Anywhere",
+  "version": "2.6.0",
+  "description": "Pop up a Gemini-powered assistant on any browser tab. Ctrl+Shift+L to open.",
   "permissions": ["tabs", "scripting", "activeTab"],
   "host_permissions": [
     "http://localhost:3000/*",
@@ -13,11 +13,26 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Ask Cursor"
+    "default_title": "Ask C_GUIDE"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
+      "js": ["companion.js"],
+      "css": ["companion.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://localhost:3000/*", "http://127.0.0.1:3000/*"],
+      "js": ["app-bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "exclude_matches": [
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
       "js": ["overlay.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle"
@@ -29,7 +44,7 @@
         "default": "Ctrl+Shift+L",
         "mac": "Command+Shift+L"
       },
-      "description": "Open the Cursor assistant on the current tab"
+      "description": "Open C_GUIDE (app or extension)"
     }
   }
 }

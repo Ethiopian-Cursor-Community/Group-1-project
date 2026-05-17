@@ -1,0 +1,52 @@
+#cguide-companion {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(139, 92, 246, 0.85);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(139, 92, 246, 0.35) 0%,
+    rgba(139, 92, 246, 0.05) 70%
+  );
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.55);
+  pointer-events: none;
+  z-index: 2147483640;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  will-change: transform;
+}
+
+#cguide-companion.visible {
+  opacity: 1;
+  animation: cguide-companion-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes cguide-companion-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.45);
+    border-color: rgba(139, 92, 246, 0.75);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(139, 92, 246, 0.85);
+    border-color: rgba(167, 139, 250, 1);
+  }
+}
+
+#cguide-companion::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+}
