@@ -1,7 +1,8 @@
 {
-  "name": "react-example",
+  "name": "c-guide",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "AI screen and browser guidance with Gemini vision and Cursor SDK fallback",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",

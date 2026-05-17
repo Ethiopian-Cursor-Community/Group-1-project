@@ -299,7 +299,13 @@ npm install
 
 ### 2. Configure `.env`
 
-Create `./.env` at the project root:
+Copy the template and add your keys:
+
+```bash
+cp .env.example .env
+```
+
+Edit `./.env`:
 
 ```env
 AI_PROVIDER=gemini
@@ -352,7 +358,8 @@ This bundles the Vite frontend into `dist/` and emits a CommonJS server at `dist
 
 ```
 .
-├── .env                       # API keys (gitignored)
+├── .env.example               # Template (copy to .env)
+├── .env                       # Your keys (gitignored — never commit)
 ├── server.ts                  # Express app + all REST routes
 ├── server/
 │   ├── gemini.ts              # @google/genai client + vision fallback chain
