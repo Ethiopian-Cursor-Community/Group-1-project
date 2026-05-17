@@ -1,0 +1,12 @@
+{
+  "name": "Cursor Guide AI",
+  "description": "An AI-powered browser assistant that visually guides you through complex web interfaces using screen capture and computer vision.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "display-capture"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

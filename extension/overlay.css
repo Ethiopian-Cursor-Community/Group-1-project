@@ -1,0 +1,142 @@
+#cguide-root {
+  all: initial;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+#cguide-root * {
+  box-sizing: border-box;
+}
+
+#cguide-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483646;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #fff;
+  font-size: 26px;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.45);
+}
+
+#cguide-fab:hover {
+  transform: scale(1.05);
+}
+
+#cguide-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 90px;
+  z-index: 2147483646;
+  width: 360px;
+  max-height: 70vh;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(10, 10, 12, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  display: none;
+  color: #f4f4f5;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#cguide-panel.open {
+  display: flex;
+}
+
+#cguide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#cguide-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+#cguide-close {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#cguide-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  min-height: 64px;
+  font-family: inherit;
+}
+
+#cguide-input:focus {
+  border-color: #8b5cf6;
+}
+
+#cguide-send {
+  width: 100%;
+  padding: 11px;
+  border-radius: 14px;
+  border: none;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+#cguide-send:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+#cguide-answer {
+  display: none;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ede9fe;
+  white-space: pre-wrap;
+}
+
+#cguide-answer.visible {
+  display: block;
+}
+
+#cguide-answer.error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fecaca;
+}
+
+#cguide-meta {
+  font-size: 10px;
+  color: #71717a;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

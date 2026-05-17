@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "C_GUIDE — Ask Cursor Anywhere",
+  "version": "2.0.0",
+  "description": "Pop up a Cursor-powered assistant on any browser tab. Ctrl+Shift+L to open.",
+  "permissions": ["tabs", "scripting", "activeTab"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Ask Cursor"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["overlay.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-guide": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Open the Cursor assistant on the current tab"
+    }
+  }
+}
